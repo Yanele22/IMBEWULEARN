@@ -235,10 +235,7 @@ function Index() {
 
           <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setAnswered(true);
-              }}
+              onSubmit={handleAsk}
               className="rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9"
             >
               <label className="block text-sm font-medium" htmlFor="q">
