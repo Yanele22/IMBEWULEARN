@@ -281,9 +281,15 @@ function Index() {
 
               <button
                 type="submit"
-                className="mt-7 inline-flex items-center gap-2 rounded-full bg-forest px-7 py-3.5 font-medium text-forest-foreground transition-transform hover:-translate-y-0.5"
+                disabled={loading}
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-forest px-7 py-3.5 font-medium text-forest-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60"
               >
-                Get culturally relevant guidance <ArrowRight className="size-4" />
+                {loading ? "Asking Imbewu…" : "Get culturally relevant guidance"}
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="size-4" />
+                )}
               </button>
             </form>
 
@@ -292,28 +298,39 @@ function Index() {
                 Your community's knowledge, made easier to find.
               </h3>
               <p className="mt-4 text-muted-foreground">
-                Add your context, then ask Imbewu to see how a culturally relevant answer
-                takes shape.
+                Imbewu shares widely known cultural knowledge and is honest when something
+                is uncertain — it never invents an elder or a story.
               </p>
               <div className="mt-6 rounded-2xl bg-muted p-5 text-sm leading-relaxed">
-                {answered ? (
+                {loading ? (
+                  <p className="inline-flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Thinking about your
+                    question…
+                  </p>
+                ) : error ? (
+                  <p className="text-destructive">{error}</p>
+                ) : answer ? (
                   <>
-                    <p className="eyebrow text-clay">Drawing from {culture} knowledge</p>
-                    <p className="mt-3 text-foreground">
-                      Imbewu would search preserved recordings from {place || "your area"}{" "}
-                      for elders who spoke about
-                      {question ? ` "${question.trim()}"` : " this topic"}, then answer in
-                      your language — always crediting the elder whose knowledge it is.
+                    <p className="eyebrow text-clay">General {culture} knowledge</p>
+                    <div className="mt-3 space-y-3 text-foreground">
+                      {answer.split(/\n{2,}/).map((p, i) => (
+                        <p key={i}>{p}</p>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-xs text-muted-foreground">
+                      This is general guidance, not a recording from a specific elder.
+                      Practices differ between families and regions — please confirm with
+                      your own elders.
                     </p>
                   </>
                 ) : (
                   <p className="text-muted-foreground">
-                    Your preview answer appears here, grounded in recordings from elders in
-                    your community.
+                    Your answer will appear here.
                   </p>
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </section>
