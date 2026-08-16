@@ -117,16 +117,16 @@ function Index() {
       </header>
 
       {/* Hero */}
-      <section className="relative isolate min-h-[92vh] overflow-hidden surface-forest">
+      <section className="relative isolate h-[88vh] min-h-[680px] overflow-hidden surface-forest">
         <img
           src={heroImage}
           alt="An elder weaving a basket while sharing knowledge with a young woman"
           width={1600}
           height={1104}
-          className="absolute inset-0 size-full object-cover object-right"
+          className="absolute inset-0 size-full object-cover object-[70%_center]"
         />
         <div className="absolute inset-0 bg-[linear-gradient(100deg,oklch(0.22_0.04_152/0.97)_18%,oklch(0.22_0.04_152/0.75)_45%,oklch(0.22_0.04_152/0.15)_75%)]" />
-        <div className="relative mx-auto flex min-h-[92vh] max-w-7xl items-center px-6 pt-28 pb-20">
+        <div className="relative mx-auto flex h-full max-w-7xl items-center px-6 pt-28 pb-20">
           <div className="max-w-2xl text-forest-foreground">
             <div className="flex items-center gap-3 text-gold">
               <span className="h-px w-10 bg-gold" />
