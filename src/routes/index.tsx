@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -6,6 +7,7 @@ import {
   Cloud,
   Hourglass,
   Languages,
+  Loader2,
   Mic,
   Search,
   Sparkles,
@@ -14,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import heroImage from "@/assets/hero-elder.jpg";
+import { askImbewu } from "@/lib/ask.functions";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,10 +84,36 @@ const seeds = ["Food", "Farming", "Crafts", "Medicine", "Stories", "Traditions"]
 const cultures = ["Zulu", "Swati", "Tsonga", "Sepedi", "Other"];
 
 function Index() {
+  const ask = useServerFn(askImbewu);
   const [culture, setCulture] = useState("Zulu");
   const [question, setQuestion] = useState("");
   const [place, setPlace] = useState("");
-  const [answered, setAnswered] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+
+  const handleAsk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (question.trim().length < 3) {
+      setError("Please write a question first.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setAnswer("");
+    try {
+      const res = await ask({
+        data: { question: question.trim(), culture, place: place.trim() },
+      });
+      if (res.ok) setAnswer(res.answer);
+      else setError(res.message);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -209,10 +239,7 @@ function Index() {
 
           <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setAnswered(true);
-              }}
+              onSubmit={handleAsk}
               className="rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9"
             >
               <label className="block text-sm font-medium" htmlFor="q">
@@ -258,9 +285,15 @@ function Index() {
 
               <button
                 type="submit"
-                className="mt-7 inline-flex items-center gap-2 rounded-full bg-forest px-7 py-3.5 font-medium text-forest-foreground transition-transform hover:-translate-y-0.5"
+                disabled={loading}
+                className="mt-7 inline-flex items-center gap-2 rounded-full bg-forest px-7 py-3.5 font-medium text-forest-foreground transition-transform hover:-translate-y-0.5 disabled:opacity-60"
               >
-                Get culturally relevant guidance <ArrowRight className="size-4" />
+                {loading ? "Asking Imbewu…" : "Get culturally relevant guidance"}
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="size-4" />
+                )}
               </button>
             </form>
 
@@ -269,28 +302,39 @@ function Index() {
                 Your community's knowledge, made easier to find.
               </h3>
               <p className="mt-4 text-muted-foreground">
-                Add your context, then ask Imbewu to see how a culturally relevant answer
-                takes shape.
+                Imbewu shares widely known cultural knowledge and is honest when something
+                is uncertain — it never invents an elder or a story.
               </p>
               <div className="mt-6 rounded-2xl bg-muted p-5 text-sm leading-relaxed">
-                {answered ? (
+                {loading ? (
+                  <p className="inline-flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Thinking about your
+                    question…
+                  </p>
+                ) : error ? (
+                  <p className="text-destructive">{error}</p>
+                ) : answer ? (
                   <>
-                    <p className="eyebrow text-clay">Drawing from {culture} knowledge</p>
-                    <p className="mt-3 text-foreground">
-                      Imbewu would search preserved recordings from {place || "your area"}{" "}
-                      for elders who spoke about
-                      {question ? ` "${question.trim()}"` : " this topic"}, then answer in
-                      your language — always crediting the elder whose knowledge it is.
+                    <p className="eyebrow text-clay">General {culture} knowledge</p>
+                    <div className="mt-3 space-y-3 text-foreground">
+                      {answer.split(/\n{2,}/).map((p, i) => (
+                        <p key={i}>{p}</p>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-xs text-muted-foreground">
+                      This is general guidance, not a recording from a specific elder.
+                      Practices differ between families and regions — please confirm with
+                      your own elders.
                     </p>
                   </>
                 ) : (
                   <p className="text-muted-foreground">
-                    Your preview answer appears here, grounded in recordings from elders in
-                    your community.
+                    Your answer will appear here.
                   </p>
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </section>
