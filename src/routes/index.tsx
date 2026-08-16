@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -6,6 +7,7 @@ import {
   Cloud,
   Hourglass,
   Languages,
+  Loader2,
   Mic,
   Search,
   Sparkles,
@@ -14,6 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import heroImage from "@/assets/hero-elder.jpg";
+import { askImbewu } from "@/lib/ask.functions";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
