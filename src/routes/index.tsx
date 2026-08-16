@@ -80,10 +80,36 @@ const seeds = ["Food", "Farming", "Crafts", "Medicine", "Stories", "Traditions"]
 const cultures = ["Zulu", "Swati", "Tsonga", "Sepedi", "Other"];
 
 function Index() {
+  const ask = useServerFn(askImbewu);
   const [culture, setCulture] = useState("Zulu");
   const [question, setQuestion] = useState("");
   const [place, setPlace] = useState("");
-  const [answered, setAnswered] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+
+  const handleAsk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (question.trim().length < 3) {
+      setError("Please write a question first.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setAnswer("");
+    try {
+      const res = await ask({
+        data: { question: question.trim(), culture, place: place.trim() },
+      });
+      if (res.ok) setAnswer(res.answer);
+      else setError(res.message);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
