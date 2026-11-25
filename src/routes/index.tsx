@@ -1,21 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Brain,
   Cloud,
+  Download,
   Hourglass,
   Languages,
   Loader2,
   Mic,
   Search,
   Sparkles,
+  Square,
   Sprout,
   Volume2,
   Users,
 } from "lucide-react";
 import heroImage from "@/assets/hero-elder.jpg";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { askImbewu } from "@/lib/ask.functions";
 
 
@@ -85,6 +95,7 @@ const cultures = ["Zulu", "Swati", "Tsonga", "Sepedi", "Other"];
 
 function Index() {
   const ask = useServerFn(askImbewu);
+  const [recorderOpen, setRecorderOpen] = useState(false);
   const [culture, setCulture] = useState("Zulu");
   const [question, setQuestion] = useState("");
   const [place, setPlace] = useState("");
@@ -137,12 +148,13 @@ function Index() {
               </a>
             ))}
           </div>
-          <a
-            href="#share"
-            className="rounded-full bg-sand px-5 py-2.5 text-sm font-medium text-forest transition-transform hover:-translate-y-0.5"
+          <Button
+            type="button"
+            onClick={() => setRecorderOpen(true)}
+            className="h-auto rounded-full bg-sand px-5 py-2.5 text-sm font-medium text-forest shadow-none transition-transform hover:-translate-y-0.5 hover:bg-sand"
           >
             Share knowledge
-          </a>
+          </Button>
         </nav>
       </header>
 
@@ -170,12 +182,13 @@ function Index() {
               generation. Elders share what they know; AI helps young people find it.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <a
-                href="#share"
-                className="inline-flex items-center gap-2 rounded-full bg-gold px-7 py-4 font-medium text-gold-foreground transition-transform hover:-translate-y-0.5"
+              <Button
+                type="button"
+                onClick={() => setRecorderOpen(true)}
+                className="h-auto min-h-12 rounded-full bg-gold px-7 py-3.5 font-medium text-gold-foreground shadow-none transition-transform hover:-translate-y-0.5 hover:bg-gold"
               >
                 <Mic className="size-4" /> Preserve knowledge <ArrowRight className="size-4" />
-              </a>
+              </Button>
               <a
                 href="#ask"
                 className="inline-flex items-center gap-2 rounded-full border border-forest-foreground/25 bg-forest-foreground/10 px-7 py-4 font-medium text-forest-foreground backdrop-blur transition-colors hover:bg-forest-foreground/20"
@@ -407,12 +420,13 @@ function Index() {
             Your roots hold knowledge. Help it grow.
           </h2>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <a
-              href="#share"
-              className="inline-flex items-center gap-2 rounded-full bg-gold px-7 py-4 font-medium text-gold-foreground transition-transform hover:-translate-y-0.5"
+            <Button
+              type="button"
+              onClick={() => setRecorderOpen(true)}
+              className="h-auto min-h-12 rounded-full bg-gold px-7 py-3.5 font-medium text-gold-foreground shadow-none transition-transform hover:-translate-y-0.5 hover:bg-gold"
             >
               <Mic className="size-4" /> Record an elder
-            </a>
+            </Button>
             <a
               href="#ask"
               className="inline-flex items-center gap-2 rounded-full border border-forest-foreground/25 px-7 py-4 font-medium text-forest-foreground transition-colors hover:bg-forest-foreground/10"
@@ -431,6 +445,209 @@ function Index() {
           <span>Preserving generational knowledge, one seed at a time.</span>
         </div>
       </footer>
+      <ElderRecorder open={recorderOpen} onOpenChange={setRecorderOpen} />
     </div>
+  );
+}
+
+function ElderRecorder({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [audioType, setAudioType] = useState("");
+  const [error, setError] = useState("");
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const openRef = useRef(open);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const audioUrlRef = useRef("");
+  const timerRef = useRef<number | null>(null);
+
+  const clearAudio = () => {
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = "";
+    setAudioUrl("");
+    setAudioType("");
+  };
+
+  const stopRecording = useCallback(() => {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  }, []);
+
+  useEffect(() => {
+    openRef.current = open;
+    if (!open) stopRecording();
+  }, [open, stopRecording]);
+
+  useEffect(
+    () => () => {
+      const recorder = recorderRef.current;
+      if (recorder) {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+        recorder.onerror = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (timerRef.current) window.clearInterval(timerRef.current);
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    },
+    [],
+  );
+
+  const startRecording = async () => {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Audio recording is not supported in this browser. Try a recent version of Chrome, Safari, or Firefox.");
+      return;
+    }
+
+    let requestedStream: MediaStream | null = null;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      requestedStream = stream;
+      if (!openRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      streamRef.current = stream;
+      clearAudio();
+      chunksRef.current = [];
+      setRecordingSeconds(0);
+
+      const supportedType = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+      ].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = supportedType
+        ? new MediaRecorder(stream, { mimeType: supportedType })
+        : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || "audio/webm";
+        const audio = new Blob(chunksRef.current, { type });
+        if (audio.size > 0) {
+          const nextUrl = URL.createObjectURL(audio);
+          audioUrlRef.current = nextUrl;
+          setAudioUrl(nextUrl);
+          setAudioType(type);
+        } else {
+          setError("No audio was captured. Please check your microphone and try again.");
+        }
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setRecording(false);
+        if (timerRef.current) window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      };
+      recorder.onerror = () => {
+        setError("The recording stopped unexpectedly. Please try again.");
+        stopRecording();
+      };
+      recorder.start();
+      setRecording(true);
+      timerRef.current = window.setInterval(() => {
+        setRecordingSeconds((seconds) => seconds + 1);
+      }, 1000);
+    } catch (cause) {
+      requestedStream?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      const denied = cause instanceof DOMException && cause.name === "NotAllowedError";
+      setError(
+        denied
+          ? "Microphone access was blocked. Allow microphone access in your browser settings, then try again."
+          : "The microphone could not be started. Check that it is connected and try again.",
+      );
+    }
+  };
+
+  const minutes = Math.floor(recordingSeconds / 60).toString().padStart(2, "0");
+  const seconds = (recordingSeconds % 60).toString().padStart(2, "0");
+  const fileExtension = audioType.includes("mp4")
+    ? "m4a"
+    : audioType.includes("ogg")
+      ? "ogg"
+      : "webm";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display text-2xl">Record an elder's story</DialogTitle>
+          <DialogDescription>
+            Ask permission before recording. Your audio stays on this device unless you download it.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 pt-2">
+          <div className="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg bg-muted px-5 py-6 text-center">
+            {recording ? (
+              <>
+                <span className="size-3 animate-pulse rounded-full bg-destructive" aria-hidden="true" />
+                <p className="font-medium" role="status">Recording · {minutes}:{seconds}</p>
+              </>
+            ) : audioUrl ? (
+              <p className="font-medium">Recording ready to review</p>
+            ) : (
+              <>
+                <Mic className="size-7 text-clay" aria-hidden="true" />
+                <p className="font-medium">Ready when you are</p>
+              </>
+            )}
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {recording
+                ? "Keep this page open while the story is being recorded."
+                : audioUrl
+                  ? "Your recording is ready. Download it to keep a copy."
+                  : "Your audio stays on this device unless you download it."}
+            </p>
+          </div>
+
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+
+          {audioUrl && (
+            <div className="space-y-3">
+              <audio className="w-full" controls src={audioUrl} aria-label="Play the recorded story" />
+              <Button asChild variant="outline" className="w-full">
+                <a href={audioUrl} download={`imbewu-elder-recording.${fileExtension}`}>
+                  <Download /> Download recording
+                </a>
+              </Button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-center gap-3">
+            {recording ? (
+              <Button type="button" variant="destructive" onClick={stopRecording}>
+                <Square /> Stop recording
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => void startRecording()}
+                className="bg-forest text-forest-foreground hover:bg-forest-soft"
+              >
+                <Mic /> {audioUrl ? "Record again" : "Start recording"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
